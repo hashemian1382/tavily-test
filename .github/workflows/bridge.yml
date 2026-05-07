@@ -12,11 +12,18 @@ jobs:
       - uses: actions/checkout@v3
       - name: Run Search
         env:
-          TAVILY_API_KEY: "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"
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
         run: |
-          curl -X POST https://api.tavily.com/search \
-          -H "Content-Type: application/json" \
-          -d "{\"api_key\": \"$TAVILY_API_KEY\", \"query\": \"${{ github.event.inputs.query }}\"}" > response.json
+          python -c "
+          import os, json, requests
+          query = '${{ github.event.inputs.query }}'
+          api_key = os.getenv('TAVILY_API_KEY')
+          resp = requests.post('https://api.tavily.com/search', json={'api_key': api_key, 'query': query})
+          data = resp.json()
+          data['current_query'] = query 
+          with open('response.json', 'w', encoding='utf-8') as f:
+              json.dump(data, f, ensure_ascii=False)
+          "
       - name: Commit result
         run: |
           git config --local user.email "action@github.com"
