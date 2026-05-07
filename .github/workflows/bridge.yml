@@ -1,0 +1,23 @@
+name: Tavily Bridge
+on: [push]
+jobs:
+  proxy:
+    if: contains(github.event.head_commit.message, 'query')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run Search
+        env:
+          TAVILY_API_KEY: "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"
+        run: |
+          QUERY=$(cat request.txt)
+          curl -X POST https://api.tavily.com/search \
+          -H "Content-Type: application/json" \
+          -d "{\"api_key\": \"$TAVILY_API_KEY\", \"query\": \"$QUERY\"}" > response.json
+      - name: Commit result
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add response.json
+          git commit -m "response: updated"
+          git push
