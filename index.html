@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tavily Search Engine</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #ffffff; color: #202124; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .logo { font-size: 48px; font-weight: bold; margin-top: 50px; margin-bottom: 30px; }
+        .logo span:nth-child(1) { color: #4285F4; } .logo span:nth-child(2) { color: #EA4335; } .logo span:nth-child(3) { color: #FBBC05; } .logo span:nth-child(4) { color: #34A853; }
+        .search-box { width: 100%; max-width: 600px; position: relative; }
+        input[type="text"] { width: 100%; padding: 15px 25px; font-size: 16px; border: 1px solid #dfe1e5; border-radius: 24px; outline: none; transition: 0.3s; box-sizing: border-box; }
+        input[type="text"]:focus { box-shadow: 0 1px 6px rgba(32,33,36,0.28); border-color: transparent; }
+        button { margin-top: 20px; padding: 10px 20px; border: none; background: #f8f9fa; cursor: pointer; border-radius: 4px; border: 1px solid #f8f9fa; color: #3c4043; }
+        button:hover { border: 1px solid #dadce0; box-shadow: 0 1px 1px rgba(0,0,0,0.1); }
+        #status { margin-top: 20px; font-size: 14px; color: #70757a; }
+        #results { width: 100%; max-width: 700px; margin-top: 30px; }
+        .result-item { margin-bottom: 25px; text-align: right; }
+        .result-item a { color: #1a0dab; text-decoration: none; font-size: 20px; }
+        .result-item a:hover { text-decoration: underline; }
+        .result-item .url { color: #006621; font-size: 14px; display: block; }
+        .result-item .desc { color: #4d5156; font-size: 14px; line-height: 1.5; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+    <div class="logo"><span>T</span><span>a</span><span>v</span><span>i</span><span>ly</span></div>
+
+    <div class="search-box">
+        <input type="text" id="query" placeholder="چیزی جستجو کنید...">
+        <center>
+            <button onclick="startSearch()">جستجوی Tavily</button>
+        </center>
+    </div>
+
+    <div id="status"></div>
+    <div id="results"></div>
+
+    <script>
+        const GITHUB_TOKEN = "اینجا_کد_توکن_را_بگذارید"; 
+        const REPO = "hashemian1382/tavily-test";
+
+        async function startSearch() {
+            const query = document.getElementById('query').value;
+            const status = document.getElementById('status');
+            if(!query) return;
+
+            status.innerText = "در حال ارسال درخواست به گیت‌هاب...";
+            
+            // 1. Trigger GitHub Action
+            const res = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/bridge.yml/dispatches`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${GITHUB_TOKEN}`,
+                    'Accept': 'application/vnd.github.v3+json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ ref: 'master', inputs: { query: query } })
+            });
+
+            if (res.ok) {
+                status.innerText = "جستجو در حال انجام است... حدود 30 ثانیه صبر کنید.";
+                pollResults();
+            } else {
+                status.innerText = "خطا در برقراری ارتباط با گیت‌هاب.";
+            }
+        }
+
+        async function pollResults() {
+            const resultsDiv = document.getElementById('results');
+            const status = document.getElementById('status');
+            
+            let attempts = 0;
+            const interval = setInterval(async () => {
+                attempts++;
+                const res = await fetch(`https://raw.githubusercontent.com/${REPO}/master/response.json?v=${Math.random()}`);
+                const data = await res.json();
+
+                // اگر نتایج مربوط به کوئری فعلی بود (ساده‌سازی شده)
+                if (data.results && data.results.length > 0) {
+                    status.innerText = "نتایج پیدا شد:";
+                    renderResults(data.results);
+                    clearInterval(interval);
+                }
+
+                if (attempts > 20) {
+                    status.innerText = "زمان انتظار طولانی شد. دوباره تلاش کنید.";
+                    clearInterval(interval);
+                }
+            }, 5000);
+        }
+
+        function renderResults(results) {
+            const div = document.getElementById('results');
+            div.innerHTML = results.map(r => `
+                <div class="result-item">
+                    <a href="${r.url}" target="_blank">${r.title}</a>
+                    <span class="url">${r.url}</span>
+                    <div class="desc">${r.content}</div>
+                </div>
+            `).join('');
+        }
+    </script>
+</body>
+</html>
